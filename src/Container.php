@@ -6,8 +6,12 @@ namespace Tomrf\ConfigContainer;
 
 class Container implements \Psr\Container\ContainerInterface
 {
+    /** @var array<string,mixed> */
     protected array $container = [];
 
+    /**
+     * @param array<string,mixed> $initialContent
+     */
     public function __construct(array $initialContent = [])
     {
         foreach ($initialContent as $id => $value) {

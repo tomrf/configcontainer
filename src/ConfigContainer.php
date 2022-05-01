@@ -8,6 +8,9 @@ use RuntimeException;
 
 class ConfigContainer extends Container
 {
+    /**
+     * @param array<string,mixed> $array
+     */
     public function __construct(array $array = [])
     {
         $this->setFromArray($array);
@@ -25,7 +28,7 @@ class ConfigContainer extends Container
      * Query configuration keys using regular expression. Returns array of
      * matching key-value pairs.
      *
-     * @return array
+     * @return array<string,mixed>
      */
     public function query(string $query)
     {
@@ -34,6 +37,8 @@ class ConfigContainer extends Container
 
     /**
      * Set multiple keys from an array.
+     *
+     * @param array<string,mixed> $array
      */
     public function setFromArray(array $array): void
     {
@@ -45,11 +50,16 @@ class ConfigContainer extends Container
     /**
      * Set multiple PHP ini configuration options from an array.
      *
+     * @param array<string,mixed> $configArray
+     *
      * @throws RuntimeException
      */
     public function setPhpIniFromConfig(array $configArray): void
     {
         foreach ($this->flattenArray($configArray) as $key => $value) {
+            if (!\is_bool($value) && !is_numeric($value) && !\is_string($value)) {
+                continue;
+            }
             $this->setPhpIni($key, $value);
         }
     }
@@ -59,17 +69,17 @@ class ConfigContainer extends Container
      *
      * @throws RuntimeException
      */
-    public function setPhpIni(string $key, mixed $value): void
+    public function setPhpIni(string $key, string|int|float|bool $value): void
     {
         try {
-            if (false === ini_set($key, $value)) {
+            if (false === ini_set($key, (string) $value)) {
                 throw new RuntimeException(sprintf('ini_set() failed for option "%s"', $key));
             }
-        } catch (\Exception $e) {
+        } catch (\Exception $exception) {
             throw new RuntimeException(sprintf(
                 'Could not set PHP ini option "%s": %s',
                 $key,
-                $e->getMessage()
+                $exception->getMessage()
             ));
         }
     }
@@ -83,28 +93,11 @@ class ConfigContainer extends Container
     }
 
     /**
-     * Get environment variable.
-     *
-     * @param mixed $key
-     * @param mixed $default
-     */
-    public function env(string $key, mixed $default = null): mixed
-    {
-        if (!isset($_ENV[$key])) {
-            return $default;
-        }
-
-        $value = $_ENV[$key];
-
-        if ('true' === mb_strtolower($value) || 'false' === mb_strtolower($value)) {
-            $value = filter_var($value, FILTER_VALIDATE_BOOL);
-        }
-
-        return $value;
-    }
-
-    /**
      * Flatten an array with dotted hierarchy notation.
+     *
+     * @param array<string,mixed> $arrayPtr
+     *
+     * @return array<string,mixed>
      */
     private function flattenArray(array $arrayPtr, mixed $parentPtr = null): array
     {
@@ -136,15 +129,21 @@ class ConfigContainer extends Container
     /**
      * Preg grep array keys.
      *
+     * @param array<string,mixed> $array
+     *
      * @return array<string,mixed>
      */
     private function queryArray(string $query, array $array)
     {
-        return array_intersect_key($array, array_flip(
-            preg_grep(sprintf(
-                '/^%s$/i',
-                str_replace('\\*', '.*?', preg_quote($query, '/'))
-            ), array_keys($array))
-        ));
+        $match = preg_grep(sprintf(
+            '/^%s$/i',
+            str_replace('\\*', '.*?', preg_quote($query, '/'))
+        ), array_keys($array));
+
+        if (false === $match) {
+            return [];
+        }
+
+        return array_intersect_key($array, array_flip($match));
     }
 }
