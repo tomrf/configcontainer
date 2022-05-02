@@ -25,14 +25,44 @@ class ConfigContainer extends Container
     }
 
     /**
-     * Query configuration keys using regular expression. Returns array of
-     * matching key-value pairs.
+     * Query configuration keys.
      *
      * @return array<string,mixed>
      */
     public function query(string $query)
     {
-        return $this->queryArray($query, $this->container);
+        $array = $this->container;
+
+        $match = preg_grep(sprintf(
+            '/^%s$/i',
+            str_replace('\\*', '.*?', preg_quote($query, '/'))
+        ), array_keys($array));
+
+        if (false === $match) {
+            return [];
+        }
+
+        return array_intersect_key($array, array_flip($match));
+    }
+
+    /**
+     * Filter configuration keys using regex, returing an array of matches across
+     * all set keys.
+     *
+     * @return array<string>
+     */
+    public function filterKeys(string $regex): array
+    {
+        $results = [];
+
+        foreach ($this->container as $key => $value) {
+            preg_match($regex, $key, $matches);
+            if (isset($matches[1])) {
+                $results[(string) $matches[1]] = true;
+            }
+        }
+
+        return array_keys($results);
     }
 
     /**
@@ -89,7 +119,7 @@ class ConfigContainer extends Container
      */
     public function getPhpIni(string $key): string|false
     {
-        return \ini_get($key);
+        return ini_get($key);
     }
 
     /**
@@ -124,26 +154,5 @@ class ConfigContainer extends Container
         }
 
         return $flat;
-    }
-
-    /**
-     * Preg grep array keys.
-     *
-     * @param array<string,mixed> $array
-     *
-     * @return array<string,mixed>
-     */
-    private function queryArray(string $query, array $array)
-    {
-        $match = preg_grep(sprintf(
-            '/^%s$/i',
-            str_replace('\\*', '.*?', preg_quote($query, '/'))
-        ), array_keys($array));
-
-        if (false === $match) {
-            return [];
-        }
-
-        return array_intersect_key($array, array_flip($match));
     }
 }

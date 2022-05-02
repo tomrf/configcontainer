@@ -65,6 +65,15 @@ final class ConfigContainerTest extends \PHPUnit\Framework\TestCase
         static::assertSame([], $this->configContainer()->query('not_set'));
     }
 
+    public function testFilterKeys(): void
+    {
+        $keys = $this->configContainer()->filterKeys('/(?:testing\\.)([\\w\\\\]+)(?:\\.|$)/');
+        static::assertContains('bool', $keys);
+        static::assertContains('nested_key', $keys);
+        static::assertContains('nested_set_from_array', $keys);
+        static::assertCount(3, $keys);
+    }
+
     private function configContainer(): ConfigContainer
     {
         return static::$configContainer;
