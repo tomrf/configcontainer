@@ -162,13 +162,19 @@ class ConfigContainer extends Container implements ContainerInterface
     }
 
     /**
-     * Returns a node (and its children) from the tree as a nested array. Returns
+     * Returns a node (and its children) from the tree as a nested array.
+     *
+     * Returns the root node (the whole tree) if no node id is specified,
      * null if the node does not exist.
      *
      * @return null|array<string,mixed>
      */
-    public function getNode(string $id): ?array
+    public function getNode(?string $id): ?array
     {
+        if (null === $id) {
+            return $this->container;
+        }
+
         $ptr = &$this->container;
         $parts = explode('.', $id);
 

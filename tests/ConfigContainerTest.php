@@ -119,6 +119,10 @@ final class ConfigContainerTest extends \PHPUnit\Framework\TestCase
 
     public function testGetNode(): void
     {
+        $root = $this->configContainer()->getNode(null);
+        static::assertArrayHasKey('simple_key', $root);
+        static::assertArrayHasKey('testing', $root);
+
         $node = $this->configContainer()->getNode('testing');
         static::assertArrayHasKey('bool', $node);
         static::assertArrayHasKey('nested_key', $node);
