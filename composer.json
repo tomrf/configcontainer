@@ -13,7 +13,8 @@
         "phpunit/phpunit": "^9.5",
         "phpstan/phpstan": "^1.6",
         "friendsofphp/php-cs-fixer": "^3.8",
-        "roave/security-advisories": "dev-latest"
+        "roave/security-advisories": "dev-latest",
+        "phpmd/phpmd": "^2.12"
     },
     "autoload": {
         "psr-4": {
@@ -22,13 +23,21 @@
     },
     "scripts": {
         "phpunit": [
-            "phpunit --do-not-cache-result"
+            "phpunit --do-not-cache-result --stderr"
         ],
         "cs-fixer": [
-            "php-cs-fixer fix --allow-risky=yes --diff --verbose src"
+            "php-cs-fixer fix --allow-risky=yes --diff --verbose src/"
         ],
         "phpstan": [
-            "phpstan analyze --level max src"
+            "phpstan analyze --level max src/"
+        ],
+        "phpmd": [
+            "phpmd src/ ansi .phpmd-ruleset.xml"
+        ],
+        "test": [
+            "@phpunit",
+            "@phpmd",
+            "@phpstan"
         ]
     }
 }

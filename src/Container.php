@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tomrf\ConfigContainer;
 
+/**
+ * @SuppressWarnings(PHPMD.ShortVariable)
+ */
 class Container implements \Psr\Container\ContainerInterface
 {
     /** @var array<string,mixed> */

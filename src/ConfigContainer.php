@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Tomrf\ConfigContainer;
 
+use Psr\Container\ContainerInterface;
 use RuntimeException;
 
-class ConfigContainer extends Container
+/**
+ * @SuppressWarnings(PHPMD.ShortVariable)
+ */
+class ConfigContainer extends Container implements ContainerInterface
 {
     /**
      * @param array<string,mixed> $array
@@ -17,11 +21,59 @@ class ConfigContainer extends Container
     }
 
     /**
+     * Set multiple keys from an array.
+     *
+     * @param array<string,mixed> $array
+     */
+    public function setFromArray(array $array): void
+    {
+        foreach ($array as $key => $value) {
+            $this->set($key, $value);
+        }
+    }
+
+    /**
+     * Set configuration key.
+     */
+    public function set(string $id, mixed $value): mixed
+    {
+        $ptr = &$this->container;
+        $parts = explode('.', $id);
+
+        foreach ($parts as $part) {
+            if (!\is_array($ptr)) {
+                continue;
+            }
+            if (!isset($ptr[$part])) {
+                $ptr[$part] = [];
+            }
+
+            $ptr = &$ptr[$part];
+        }
+
+        return $ptr = $value;
+    }
+
+    /**
      * Get configuration value by key.
      */
     public function get(string $id, mixed $default = null): mixed
     {
-        return $this->container[$id] ?? $default;
+        $ptr = &$this->container;
+        $parts = explode('.', $id);
+
+        foreach ($parts as $part) {
+            if (!\is_array($ptr)) {
+                continue;
+            }
+            if (!isset($ptr[$part])) {
+                return $default;
+            }
+
+            $ptr = &$ptr[$part];
+        }
+
+        return $ptr;
     }
 
     /**
@@ -31,7 +83,7 @@ class ConfigContainer extends Container
      */
     public function query(string $query)
     {
-        $array = $this->container;
+        $array = $this->flattenArray($this->container);
 
         $match = preg_grep(sprintf(
             '/^%s$/i',
@@ -53,9 +105,10 @@ class ConfigContainer extends Container
      */
     public function filterKeys(string $regex): array
     {
+        $array = $this->flattenArray($this->container);
         $results = [];
 
-        foreach ($this->container as $key => $value) {
+        foreach (array_keys($array) as $key) {
             preg_match($regex, $key, $matches);
             if (isset($matches[1])) {
                 $results[(string) $matches[1]] = true;
@@ -66,28 +119,22 @@ class ConfigContainer extends Container
     }
 
     /**
-     * Set multiple keys from an array.
-     *
-     * @param array<string,mixed> $array
-     */
-    public function setFromArray(array $array): void
-    {
-        foreach ($this->flattenArray($array) as $key => $value) {
-            $this->set($key, $value);
-        }
-    }
-
-    /**
-     * Set multiple PHP ini configuration options from an array.
-     *
-     * @param array<string,mixed> $configArray
+     * Set multiple PHP ini configuration options from the container using a
+     * query as filter.
      *
      * @throws RuntimeException
      */
-    public function setPhpIniFromConfig(array $configArray): void
+    public function setPhpIniFromNode(string $id): void
     {
-        foreach ($this->flattenArray($configArray) as $key => $value) {
-            if (!\is_bool($value) && !is_numeric($value) && !\is_string($value)) {
+        $node = $this->getNode($id);
+
+        if (null === $node) {
+            throw new RuntimeException('Node "%s" not found in configuration tree');
+        }
+
+        $array = $this->flattenArray($node);
+        foreach ($array as $key => $value) {
+            if (!\is_scalar($value)) {
                 continue;
             }
             $this->setPhpIni($key, $value);
@@ -95,7 +142,7 @@ class ConfigContainer extends Container
     }
 
     /**
-     * Set PHP ini option.
+     * Set PHP ini option using ini_set().
      *
      * @throws RuntimeException
      */
@@ -115,15 +162,32 @@ class ConfigContainer extends Container
     }
 
     /**
-     * Get PHP ini option.
+     * Returns a node (and its children) from the tree as a nested array. Returns
+     * null if the node does not exist.
+     *
+     * @return null|array<string,mixed>
      */
-    public function getPhpIni(string $key): string|false
+    public function getNode(string $id): ?array
     {
-        return ini_get($key);
+        $ptr = &$this->container;
+        $parts = explode('.', $id);
+
+        foreach ($parts as $part) {
+            if (!\is_array($ptr)) {
+                continue;
+            }
+            if (!isset($ptr[$part])) {
+                return null;
+            }
+
+            $ptr = &$ptr[$part];
+        }
+
+        return $ptr;
     }
 
     /**
-     * Flatten an array with dotted hierarchy notation.
+     * Flatten an array.
      *
      * @param array<string,mixed> $arrayPtr
      *
@@ -135,22 +199,28 @@ class ConfigContainer extends Container
 
         foreach ($arrayPtr as $key => $value) {
             if (\is_array($value)) {
-                $parentKey = $key;
+                $flat = array_merge($flat, $this->flattenArray(
+                    $value,
+                    null === $parentPtr
+                        ? $key
+                        : sprintf(
+                            '%s.%s',
+                            \is_scalar($parentPtr) ? $parentPtr : '',
+                            $key
+                        )
+                ));
 
-                if ($parentPtr) {
-                    $parentKey = $parentPtr.'.'.$key;
-                }
-
-                $flat = array_merge($flat, $this->flattenArray($value, $parentKey));
-            } else {
-                $configKey = $key;
-
-                if ($parentPtr) {
-                    $configKey = $parentPtr.'.'.$key;
-                }
-
-                $flat[$configKey] = $value;
+                continue;
             }
+            if ($parentPtr) {
+                $key = sprintf(
+                    '%s.%s',
+                    \is_scalar($parentPtr) ? $parentPtr : '',
+                    $key
+                );
+            }
+
+            $flat[$key] = $value;
         }
 
         return $flat;
