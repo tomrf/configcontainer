@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tomrf\Phpskel;
+namespace Tomrf\ConfigContainer\Test;
 
 use Tomrf\ConfigContainer\ConfigContainer;
 

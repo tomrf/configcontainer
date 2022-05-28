@@ -14,16 +14,22 @@
         "phpstan/phpstan": "^1.6",
         "friendsofphp/php-cs-fixer": "^3.8",
         "roave/security-advisories": "dev-latest",
-        "phpmd/phpmd": "^2.12"
+        "phpmd/phpmd": "^2.12",
+        "pdepend/pdepend": "^2.10"
     },
     "autoload": {
         "psr-4": {
             "Tomrf\\ConfigContainer\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Tomrf\\ConfigContainer\\Test\\": "tests/"
+        }
+    },
     "scripts": {
         "phpunit": [
-            "phpunit --do-not-cache-result --stderr"
+            "phpunit -c .phpunit.dist.xml --colors=auto --coverage-text --stderr --repeat 10"
         ],
         "cs-fixer": [
             "php-cs-fixer fix --allow-risky=yes --diff --verbose src/"
@@ -32,7 +38,7 @@
             "phpstan analyze --level max src/"
         ],
         "phpmd": [
-            "phpmd src/ ansi .phpmd-ruleset.xml"
+            "phpmd src/ ansi .phpmd-ruleset.dist.xml"
         ],
         "test": [
             "@phpunit",
