@@ -24,8 +24,8 @@ class Container implements \Psr\Container\ContainerInterface
 
     public function get(string $id): mixed
     {
-        if (!isset($this->container[$id])) {
-            throw new NotFoundException('Container does not contain '.$id);
+        if (!$this->has($id)) {
+            throw new NotFoundException(sprintf('Container does not contain "%s"', $id));
         }
 
         return $this->container[$id];

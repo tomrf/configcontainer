@@ -35,7 +35,6 @@ final class ConfigContainerTest extends \PHPUnit\Framework\TestCase
 
     public function testConfigContainerIsInstanceOfConfigContainer(): void
     {
-        static::assertIsObject(static::$configContainer);
         static::assertInstanceOf(
             ConfigContainer::class,
             static::$configContainer
@@ -47,11 +46,12 @@ final class ConfigContainerTest extends \PHPUnit\Framework\TestCase
         $configContainer = new ConfigContainer([
             'initial' => [
                 'int' => 100,
-                'string' => 'string',
+                'string' => 'a string',
                 'bool' => true,
             ],
         ]);
         static::assertTrue($configContainer->get('initial.bool'));
+        static::assertSame('a string', $configContainer->get('initial.string'));
     }
 
     public function testSet(): void
@@ -93,6 +93,18 @@ final class ConfigContainerTest extends \PHPUnit\Framework\TestCase
         static::assertTrue(static::$configContainer->get('testing.bool.true_from_array'));
     }
 
+    public function testSetOverwriteNested(): void
+    {
+        static::$configContainer->set('level1.level2.level3', 3);
+        static::assertSame(3, static::$configContainer->get('level1.level2.level3'));
+
+        static::$configContainer->set('level1.level2', 2);
+        static::assertSame(2, static::$configContainer->get('level1.level2'));
+
+        static::$configContainer->set('level1', 1);
+        static::assertSame(1, static::$configContainer->get('level1'));
+    }
+
     public function testSearch(): void
     {
         $keys = static::$configContainer->search(
@@ -101,6 +113,14 @@ final class ConfigContainerTest extends \PHPUnit\Framework\TestCase
         static::assertArrayHasKey('testing.nested_key', $keys);
         static::assertArrayHasKey('testing.nested_set_from_array', $keys);
         static::assertCount(2, $keys);
+    }
+
+    public function testSearchWithIllegalRegexFails(): void
+    {
+        $this->expectException(RuntimeException::class);
+        static::$configContainer->search(
+            '/(/'
+        );
     }
 
     public function testSearchFailsWhenIllegalDelimiter(): void

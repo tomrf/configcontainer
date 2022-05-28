@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tomrf\ConfigContainer;
 
+use Exception;
 use Psr\Container\ContainerInterface;
 use RuntimeException;
 
@@ -41,15 +42,13 @@ class ConfigContainer extends Container implements ContainerInterface
         $parts = explode('.', $id);
 
         foreach ($parts as $part) {
-            if (!\is_array($ptr)) {
-                continue;
-            }
-
             if (!isset($ptr[$part])) {
                 $ptr[$part] = [];
             }
 
-            $ptr = &$ptr[$part];
+            if (\is_array($ptr[$part])) {
+                $ptr = &$ptr[$part];
+            }
         }
 
         return $ptr = $value;
@@ -64,15 +63,17 @@ class ConfigContainer extends Container implements ContainerInterface
         $parts = explode('.', $id);
 
         foreach ($parts as $part) {
-            if (!\is_array($ptr)) {
-                continue;
-            }
-
             if (!isset($ptr[$part])) {
                 return $default;
             }
 
-            $ptr = &$ptr[$part];
+            if (\is_array($ptr[$part])) {
+                $ptr = &$ptr[$part];
+
+                continue;
+            }
+
+            return $ptr[$part];
         }
 
         return $ptr;
@@ -101,11 +102,11 @@ class ConfigContainer extends Container implements ContainerInterface
         }
 
         foreach (array_keys($array) as $key) {
-            $numMatches = preg_match($regularExpression, $key);
-
-            if (\is_bool($numMatches)) {
+            try {
+                $numMatches = preg_match($regularExpression, $key);
+            } catch (Exception $exception) {
                 throw new RuntimeException(
-                    sprintf('preg_match() returned error: %s', preg_last_error_msg())
+                    sprintf('preg_match exception: %s', $exception)
                 );
             }
 

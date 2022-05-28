@@ -29,7 +29,7 @@
     },
     "scripts": {
         "phpunit": [
-            "phpunit -c .phpunit.dist.xml --colors=auto --coverage-text --stderr --repeat 10"
+            "phpunit -c .phpunit.dist.xml --colors=auto --coverage-text --coverage-html .phpunit.cache/code-coverage --stderr --repeat 10"
         ],
         "cs-fixer": [
             "php-cs-fixer fix --allow-risky=yes --diff --verbose src/"
