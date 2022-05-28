@@ -44,6 +44,7 @@ class ConfigContainer extends Container implements ContainerInterface
             if (!\is_array($ptr)) {
                 continue;
             }
+
             if (!isset($ptr[$part])) {
                 $ptr[$part] = [];
             }
@@ -66,6 +67,7 @@ class ConfigContainer extends Container implements ContainerInterface
             if (!\is_array($ptr)) {
                 continue;
             }
+
             if (!isset($ptr[$part])) {
                 return $default;
             }
@@ -77,119 +79,42 @@ class ConfigContainer extends Container implements ContainerInterface
     }
 
     /**
-     * Query configuration keys.
+     * Returns an array of matching configuration keys using regex matching
+     * on key names.
      *
-     * @return array<string,mixed>
+     * @return array<string, mixed>
      */
-    public function query(string $query)
+    public function search(string $regularExpression): array
     {
         $array = $this->flattenArray($this->container);
 
-        $match = preg_grep(sprintf(
-            '/^%s$/i',
-            str_replace('\\*', '.*?', preg_quote($query, '/'))
-        ), array_keys($array));
-
-        if (false === $match) {
-            return [];
+        if (!isset($regularExpression[0])) {
+            throw new RuntimeException(
+                'Illegal regular expression'
+            );
         }
 
-        return array_intersect_key($array, array_flip($match));
-    }
-
-    /**
-     * Filter configuration keys using regex, returing an array of matches across
-     * all set keys.
-     *
-     * @return array<string>
-     */
-    public function filterKeys(string $regex): array
-    {
-        $array = $this->flattenArray($this->container);
-        $results = [];
+        if (ctype_alnum($regularExpression[0]) || '\\' === $regularExpression[0]) {
+            throw new RuntimeException(
+                'Illegal regex delimiter, must not be alphanumeric or backslash'
+            );
+        }
 
         foreach (array_keys($array) as $key) {
-            preg_match($regex, $key, $matches);
-            if (isset($matches[1])) {
-                $results[(string) $matches[1]] = true;
+            $numMatches = preg_match($regularExpression, $key);
+
+            if (\is_bool($numMatches)) {
+                throw new RuntimeException(
+                    sprintf('preg_match() returned error: %s', preg_last_error_msg())
+                );
+            }
+
+            if (0 === $numMatches) {
+                unset($array[$key]);
             }
         }
 
-        return array_keys($results);
-    }
-
-    /**
-     * Set multiple PHP ini configuration options from the container using a
-     * query as filter.
-     *
-     * @throws RuntimeException
-     */
-    public function setPhpIniFromNode(string $id): void
-    {
-        $node = $this->getNode($id);
-
-        if (null === $node) {
-            throw new RuntimeException('Node "%s" not found in configuration tree');
-        }
-
-        $array = $this->flattenArray($node);
-        foreach ($array as $key => $value) {
-            if (!\is_scalar($value)) {
-                continue;
-            }
-            $this->setPhpIni($key, $value);
-        }
-    }
-
-    /**
-     * Set PHP ini option using ini_set().
-     *
-     * @throws RuntimeException
-     */
-    public function setPhpIni(string $key, string|int|float|bool $value): void
-    {
-        try {
-            if (false === ini_set($key, (string) $value)) {
-                throw new RuntimeException(sprintf('ini_set() failed for option "%s"', $key));
-            }
-        } catch (\Exception $exception) {
-            throw new RuntimeException(sprintf(
-                'Could not set PHP ini option "%s": %s',
-                $key,
-                $exception->getMessage()
-            ));
-        }
-    }
-
-    /**
-     * Returns a node (and its children) from the tree as a nested array.
-     *
-     * Returns the root node (the whole tree) if no node id is specified,
-     * null if the node does not exist.
-     *
-     * @return null|array<string,mixed>
-     */
-    public function getNode(?string $id): ?array
-    {
-        if (null === $id) {
-            return $this->container;
-        }
-
-        $ptr = &$this->container;
-        $parts = explode('.', $id);
-
-        foreach ($parts as $part) {
-            if (!\is_array($ptr)) {
-                continue;
-            }
-            if (!isset($ptr[$part])) {
-                return null;
-            }
-
-            $ptr = &$ptr[$part];
-        }
-
-        return $ptr;
+        return $array;
     }
 
     /**
@@ -209,21 +134,14 @@ class ConfigContainer extends Container implements ContainerInterface
                     $value,
                     null === $parentPtr
                         ? $key
-                        : sprintf(
-                            '%s.%s',
-                            \is_scalar($parentPtr) ? $parentPtr : '',
-                            $key
-                        )
+                        : sprintf('%s.%s', is_scalar($parentPtr) ? $parentPtr : '', $key)
                 ));
 
                 continue;
             }
+
             if ($parentPtr) {
-                $key = sprintf(
-                    '%s.%s',
-                    \is_scalar($parentPtr) ? $parentPtr : '',
-                    $key
-                );
+                $key = sprintf('%s.%s', is_scalar($parentPtr) ? $parentPtr : '', $key);
             }
 
             $flat[$key] = $value;

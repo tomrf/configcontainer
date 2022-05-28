@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tomrf\ConfigContainer\Test;
 
+use RuntimeException;
 use Tomrf\ConfigContainer\ConfigContainer;
 
 /**
+ * @covers \Tomrf\ConfigContainer\ConfigContainer
+ *
  * @internal
- * @coversNothing
  */
 final class ConfigContainerTest extends \PHPUnit\Framework\TestCase
 {
@@ -40,12 +42,48 @@ final class ConfigContainerTest extends \PHPUnit\Framework\TestCase
         );
     }
 
+    public function testConstructWithInitialData(): void
+    {
+        $configContainer = new ConfigContainer([
+            'initial' => [
+                'int' => 100,
+                'string' => 'string',
+                'bool' => true,
+            ],
+        ]);
+        static::assertTrue($configContainer->get('initial.bool'));
+    }
+
+    public function testSet(): void
+    {
+        static::assertSame(123, static::$configContainer->set('set_int', 123));
+        static::assertSame('string', static::$configContainer->set('set_string', 'string'));
+        static::assertSame([], static::$configContainer->set('set_array', []));
+        static::assertNull(static::$configContainer->set('set_null', null));
+    }
+
     public function testGet(): void
     {
         static::assertSame(123, static::$configContainer->get('simple_key'));
         static::assertSame('abc', static::$configContainer->get('testing.nested_key'));
         static::assertTrue(static::$configContainer->get('testing.bool.true'));
         static::assertFalse(static::$configContainer->get('testing.bool.false'));
+    }
+
+    public function testGetWithDefault(): void
+    {
+        static::assertSame(123, static::$configContainer->get('simple_key'), 'default');
+        static::assertSame('abc', static::$configContainer->get('testing.nested_key'), 'default');
+        static::assertTrue(static::$configContainer->get('testing.bool.true'), 'default');
+        static::assertFalse(static::$configContainer->get('testing.bool.false'), 'default');
+    }
+
+    public function testGetNonExistingWithDefault(): void
+    {
+        static::assertSame('default', static::$configContainer->get('x_simple', 'default'));
+        static::assertSame('default', static::$configContainer->get('x_nested.nested', 'default'));
+        static::assertTrue(static::$configContainer->get('x_default_bool_true', true));
+        static::assertFalse(static::$configContainer->get('x_default_bool_false', false));
     }
 
     public function testGetKeysSetFromArray(): void
@@ -55,60 +93,43 @@ final class ConfigContainerTest extends \PHPUnit\Framework\TestCase
         static::assertTrue(static::$configContainer->get('testing.bool.true_from_array'));
     }
 
-    public function testQuery(): void
+    public function testSearch(): void
     {
-        static::assertCount(7, static::$configContainer->query('*'));
-        static::assertCount(3, static::$configContainer->query('*array'));
-        static::assertArrayHasKey(
-            'set_from_array',
-            static::$configContainer->query('*array')
+        $keys = static::$configContainer->search(
+            '/nested/'
         );
-        static::assertArrayHasKey(
-            'testing.nested_set_from_array',
-            static::$configContainer->query('test*array')
-        );
-        static::assertSame(
-            ['testing.bool.true_from_array' => true],
-            static::$configContainer->query('testing.*.*array')
-        );
-        static::assertSame(
-            ['set_from_array' => 321],
-            static::$configContainer->query('set_from_array')
-        );
-        static::assertSame(
-            [],
-            static::$configContainer->query('not_set')
-        );
+        static::assertArrayHasKey('testing.nested_key', $keys);
+        static::assertArrayHasKey('testing.nested_set_from_array', $keys);
+        static::assertCount(2, $keys);
     }
 
-    public function testFilterKeys(): void
+    public function testSearchFailsWhenIllegalDelimiter(): void
     {
-        $keys = static::$configContainer->filterKeys(
-            '/(?:testing\\.)([\\w\\\\]+)(?:\\.|$)/'
+        $this->expectException(RuntimeException::class);
+        $keys = static::$configContainer->search(
+            'illegal delimiter'
         );
-        static::assertContains('bool', $keys);
-        static::assertContains('nested_key', $keys);
-        static::assertContains('nested_set_from_array', $keys);
-        static::assertCount(3, $keys);
     }
 
     public function testGetNode(): void
     {
-        $root = static::$configContainer->getNode(null);
-        static::assertArrayHasKey('simple_key', $root);
-        static::assertArrayHasKey('testing', $root);
-
-        $node = static::$configContainer->getNode('testing');
+        $node = static::$configContainer->get('testing');
         static::assertArrayHasKey('bool', $node);
         static::assertArrayHasKey('nested_key', $node);
         static::assertArrayHasKey('nested_set_from_array', $node);
 
-        $node = static::$configContainer->getNode('testing.bool');
+        $node = static::$configContainer->get('testing.bool');
         static::assertArrayHasKey('true', $node);
         static::assertArrayHasKey('false', $node);
         static::assertArrayHasKey('true_from_array', $node);
 
-        $node = static::$configContainer->getNode('no.such.key');
+        $node = static::$configContainer->get('no.such.key');
         static::assertNull($node);
+    }
+
+    public function testSearchWithEmptyQuery(): void
+    {
+        $this->expectException(RuntimeException::class);
+        static::$configContainer->search('');
     }
 }
