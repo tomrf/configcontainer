@@ -29,7 +29,7 @@ class ConfigContainer extends Container implements ContainerInterface
     public function setFromArray(array $array): void
     {
         foreach ($array as $key => $value) {
-            $this->set($key, $value);
+            $this->set((string) $key, $value);
         }
     }
 
