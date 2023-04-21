@@ -1,7 +1,7 @@
 {
     "name": "tomrf/configcontainer",
     "type": "library",
-    "description": "configcontainer",
+    "description": "PHP PSR-11 compliant container for convenient access to application specific configuration data",
     "keywords": [ "configcontainer" ],
     "homepage": "http://github.com/tomrf/configcontainer",
     "license": "MIT",
@@ -41,7 +41,10 @@
             "phpmd src/ ansi .phpmd-ruleset.dist.xml"
         ],
         "test": [
-            "@phpunit",
+            "@phpunit"
+        ],
+        "check": [
+            "@test",
             "@phpmd",
             "@phpstan"
         ]
